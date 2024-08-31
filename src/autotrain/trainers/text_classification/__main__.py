@@ -1,9 +1,13 @@
 import argparse
+import gc
 import json
+import os
 
+import torch
 from accelerate.state import PartialState
 from datasets import load_dataset, load_from_disk
 from huggingface_hub import HfApi
+from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
 from transformers import (
     AutoConfig,
     AutoModelForSequenceClassification,
@@ -11,6 +15,7 @@ from transformers import (
     EarlyStoppingCallback,
     Trainer,
     TrainingArguments,
+    BitsAndBytesConfig
 )
 from transformers.trainer_callback import PrinterCallback
 
@@ -104,12 +109,28 @@ def train(config):
     model_config.label2id = label2id
     model_config.id2label = {v: k for k, v in label2id.items()}
 
+    logger.info("loading model...")
+    bnb_config = None
+    if config.peft:
+        if config.quantization == "int4":
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=False,
+            )
+        elif config.quantization == "int8":
+            bnb_config = BitsAndBytesConfig(load_in_8bit=True)
+        else:
+            bnb_config = None
+
     try:
         model = AutoModelForSequenceClassification.from_pretrained(
             config.model,
             config=model_config,
             trust_remote_code=ALLOW_REMOTE_CODE,
             token=config.token,
+            quantization_config=bnb_config,
             ignore_mismatched_sizes=True,
         )
     except OSError:
@@ -119,8 +140,24 @@ def train(config):
             from_tf=True,
             trust_remote_code=ALLOW_REMOTE_CODE,
             token=config.token,
+            quantization_config=bnb_config,
             ignore_mismatched_sizes=True,
         )
+
+    logger.info(f"model dtype: {model.dtype}")
+
+    if config.peft:
+        logger.info("preparing peft model...")
+
+        peft_config = LoraConfig(
+            r=config.lora_r,
+            lora_alpha=config.lora_alpha,
+            lora_dropout=config.lora_dropout,
+            bias="none",
+            task_type="SEQ_CLS",
+            target_modules=utils.get_target_modules(config),
+        )
+        model = get_peft_model(model, peft_config)
 
     tokenizer = AutoTokenizer.from_pretrained(config.model, token=config.token, trust_remote_code=ALLOW_REMOTE_CODE)
     train_data = TextClassificationDataset(data=train_data, tokenizer=tokenizer, config=config)
@@ -208,6 +245,26 @@ def train(config):
     # save model card to output directory as README.md
     with open(f"{config.project_name}/README.md", "w") as f:
         f.write(model_card)
+
+    if config.peft and config.merge_adapter:
+        del trainer
+        gc.collect()
+        torch.cuda.empty_cache()
+        logger.info("Merging adapter weights...")
+        try:
+            utils.merge_adapter(
+                base_model_path=config.model,
+                target_model_path=config.project_name,
+                adapter_path=config.project_name,
+            )
+            # remove adapter weights: adapter_*
+            for file in os.listdir(config.project_name):
+                if file.startswith("adapter_"):
+                    os.remove(f"{config.project_name}/{file}")
+        except Exception as e:
+            logger.warning(f"Failed to merge adapter weights: {e}")
+            logger.warning("Skipping adapter merge. Only adapter weights will be saved.")
+
 
     if config.push_to_hub:
         if PartialState().process_index == 0:

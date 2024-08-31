@@ -35,3 +35,12 @@ class TextClassificationParams(AutoTrainParams):
     log: str = Field("none", title="Logging using experiment tracking")
     early_stopping_patience: int = Field(5, title="Early stopping patience")
     early_stopping_threshold: float = Field(0.01, title="Early stopping threshold")
+
+    # peft
+    quantization: Optional[str] = Field("int4", title="int4, int8, or None")
+    target_modules: Optional[str] = Field("all-linear", title="Target modules")
+    merge_adapter: bool = Field(False, title="Merge adapter")
+    peft: bool = Field(False, title="Use PEFT")
+    lora_r: int = Field(16, title="Lora r")
+    lora_alpha: int = Field(32, title="Lora alpha")
+    lora_dropout: float = Field(0.05, title="Lora dropout")

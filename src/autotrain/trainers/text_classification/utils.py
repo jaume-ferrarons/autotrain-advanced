@@ -2,7 +2,12 @@ import os
 
 import numpy as np
 import requests
+import torch
 from sklearn import metrics
+from peft import PeftModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from autotrain import logger
 
 
 BINARY_CLASSIFICATION_EVAL_METRICS = (
@@ -115,3 +120,34 @@ def pause_endpoint(params):
     headers = {"Authorization": f"Bearer {params.token}"}
     r = requests.post(api_url, headers=headers)
     return r.json()
+
+
+def get_target_modules(config):
+    if config.target_modules.strip().lower() == "all-linear":
+        return "all-linear"
+    return config.target_modules.split(",")
+
+def merge_adapter(base_model_path, target_model_path, adapter_path):
+    logger.info("Loading adapter...")
+    model = AutoModelForCausalLM.from_pretrained(
+        base_model_path,
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
+        trust_remote_code=ALLOW_REMOTE_CODE,
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        target_model_path,
+        trust_remote_code=ALLOW_REMOTE_CODE,
+    )
+    try:
+        model.resize_token_embeddings(len(tokenizer))
+        model = PeftModel.from_pretrained(model, adapter_path)
+    except RuntimeError:
+        model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=8)
+        model = PeftModel.from_pretrained(model, adapter_path)
+    model = model.merge_and_unload()
+
+    logger.info("Saving target model...")
+    model.save_pretrained(target_model_path)
+    tokenizer.save_pretrained(target_model_path)
