@@ -121,8 +121,6 @@ def train(config):
             )
         elif config.quantization == "int8":
             bnb_config = BitsAndBytesConfig(load_in_8bit=True)
-        else:
-            bnb_config = None
 
     try:
         model = AutoModelForSequenceClassification.from_pretrained(
@@ -133,6 +131,7 @@ def train(config):
             quantization_config=bnb_config,
             ignore_mismatched_sizes=True,
         )
+    
     except OSError:
         model = AutoModelForSequenceClassification.from_pretrained(
             config.model,
@@ -157,6 +156,8 @@ def train(config):
             task_type="SEQ_CLS",
             target_modules=utils.get_target_modules(config),
         )
+        if config.quantization is not None:
+            model = prepare_model_for_kbit_training(model)
         model = get_peft_model(model, peft_config)
 
     tokenizer = AutoTokenizer.from_pretrained(config.model, token=config.token, trust_remote_code=ALLOW_REMOTE_CODE)
