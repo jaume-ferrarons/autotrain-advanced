@@ -35,6 +35,7 @@ class TextClassificationParams(AutoTrainParams):
     log: str = Field("none", title="Logging using experiment tracking")
     early_stopping_patience: int = Field(5, title="Early stopping patience")
     early_stopping_threshold: float = Field(0.01, title="Early stopping threshold")
+    padding: Optional[str] = Field("right", title="Padding side")
 
     # peft
     quantization: Optional[str] = Field("int4", title="int4, int8, or None")

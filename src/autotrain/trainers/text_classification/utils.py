@@ -8,6 +8,7 @@ from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from autotrain import logger
+from autotrain.trainers.common import ALLOW_REMOTE_CODE
 
 
 BINARY_CLASSIFICATION_EVAL_METRICS = (
@@ -151,3 +152,19 @@ def merge_adapter(base_model_path, target_model_path, adapter_path):
     logger.info("Saving target model...")
     model.save_pretrained(target_model_path)
     tokenizer.save_pretrained(target_model_path)
+
+def get_tokenizer(config):
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.model, token=config.token, trust_remote_code=ALLOW_REMOTE_CODE
+    )
+
+    if getattr(tokenizer, "pad_token", None) is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    if getattr(tokenizer, "pad_token_id", None) is None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    if config.padding in ("left", "right"):
+        tokenizer.padding_side = config.padding
+
+    return tokenizer

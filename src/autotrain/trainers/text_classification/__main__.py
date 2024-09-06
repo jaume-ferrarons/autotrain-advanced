@@ -7,11 +7,10 @@ import torch
 from accelerate.state import PartialState
 from datasets import load_dataset, load_from_disk
 from huggingface_hub import HfApi
-from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from transformers import (
     AutoConfig,
     AutoModelForSequenceClassification,
-    AutoTokenizer,
     EarlyStoppingCallback,
     Trainer,
     TrainingArguments,
@@ -160,7 +159,7 @@ def train(config):
             model = prepare_model_for_kbit_training(model)
         model = get_peft_model(model, peft_config)
 
-    tokenizer = AutoTokenizer.from_pretrained(config.model, token=config.token, trust_remote_code=ALLOW_REMOTE_CODE)
+    tokenizer = utils.get_tokenizer(config)
     train_data = TextClassificationDataset(data=train_data, tokenizer=tokenizer, config=config)
     if config.valid_split is not None:
         valid_data = TextClassificationDataset(data=valid_data, tokenizer=tokenizer, config=config)
