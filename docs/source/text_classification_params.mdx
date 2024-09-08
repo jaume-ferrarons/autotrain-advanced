@@ -51,4 +51,19 @@
 --mixed-precision {fp16,bf16,None}
                     Choose the precision mode for training to optimize performance and memory usage. Options are 'fp16', 'bf16', or None for
                     default precision. Default is None.
+--quantization {int4,int8,None}, --quantization {int4,int8,None}
+                    Choose the quantization level to reduce model size and potentially increase inference speed. Options include 'int4', 'int8',
+                    or None. Enabling requires --peft
+--peft, --use-peft    Enable LoRA-PEFT
+--lora_r LORA_R, --lora-r LORA_R
+                    Set the 'r' parameter for Low-Rank Adaptation (LoRA). Default is 16.
+--lora_alpha LORA_ALPHA, --lora-alpha LORA_ALPHA
+                    Specify the 'alpha' parameter for LoRA. Default is 32.
+--lora_dropout LORA_DROPOUT, --lora-dropout LORA_DROPOUT
+                    Set the dropout rate within the LoRA layers to help prevent overfitting during adaptation. Default is 0.05.
+--target_modules TARGET_MODULES, --target-modules TARGET_MODULES
+                    Identify specific modules within the model architecture to target with adaptations or optimizations, such as LoRA. Comma
+                    separated list of module names. Default is 'all-linear'.
+--merge_adapter, --merge-adapter
+                    Use this flag to merge PEFT adapter with the model
 ```
