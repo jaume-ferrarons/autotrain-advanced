@@ -252,11 +252,7 @@ def train(config):
         torch.cuda.empty_cache()
         logger.info("Merging adapter weights...")
         try:
-            utils.merge_adapter(
-                base_model_path=config.model,
-                target_model_path=config.project_name,
-                adapter_path=config.project_name,
-            )
+            utils.merge_adapter(config, model_config)
             # remove adapter weights: adapter_*
             for file in os.listdir(config.project_name):
                 if file.startswith("adapter_"):

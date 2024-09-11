@@ -5,7 +5,7 @@ import requests
 import torch
 from sklearn import metrics
 from peft import PeftModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from autotrain import logger
 from autotrain.trainers.common import ALLOW_REMOTE_CODE
@@ -128,25 +128,25 @@ def get_target_modules(config):
         return "all-linear"
     return config.target_modules.split(",")
 
-def merge_adapter(base_model_path, target_model_path, adapter_path):
+def merge_adapter(config, model_config):
+    target_model_path = config.project_name
+    adapter_path = config.project_name
+
     logger.info("Loading adapter...")
-    model = AutoModelForCausalLM.from_pretrained(
-        base_model_path,
-        torch_dtype=torch.float16,
+    model = AutoModelForSequenceClassification.from_pretrained(
+        config.model,
+        config=model_config,
         low_cpu_mem_usage=True,
         trust_remote_code=ALLOW_REMOTE_CODE,
+        token=config.token,
     )
 
     tokenizer = AutoTokenizer.from_pretrained(
         target_model_path,
         trust_remote_code=ALLOW_REMOTE_CODE,
     )
-    try:
-        model.resize_token_embeddings(len(tokenizer))
-        model = PeftModel.from_pretrained(model, adapter_path)
-    except RuntimeError:
-        model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=8)
-        model = PeftModel.from_pretrained(model, adapter_path)
+
+    model = PeftModel.from_pretrained(model, adapter_path)
     model = model.merge_and_unload()
 
     logger.info("Saving target model...")
