@@ -154,8 +154,9 @@ def train(config):
             bias="none",
             task_type="SEQ_CLS",
             target_modules=utils.get_target_modules(config),
+            modules_to_save=["pre_classifier", "classifier"]
         )
-        if config.quantization is not None:
+        if config.quantization in ["int4", "int8"]:
             model = prepare_model_for_kbit_training(model)
         model = get_peft_model(model, peft_config)
 
