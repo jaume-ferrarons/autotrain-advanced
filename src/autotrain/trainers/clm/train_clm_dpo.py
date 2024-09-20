@@ -1,8 +1,8 @@
 import torch
 from peft import LoraConfig
-from transformers import AutoConfig, AutoModelForCausalLM, BitsAndBytesConfig, DPOConfig
+from transformers import AutoConfig, AutoModelForCausalLM, BitsAndBytesConfig
 from transformers.trainer_callback import PrinterCallback
-from trl import DPOTrainer
+from trl import DPOTrainer, DPOConfig
 
 from autotrain import logger
 from autotrain.trainers.clm import utils
